@@ -1,178 +1,250 @@
-# AURUM Luxury Boutique — Full Stack E-Commerce App
+<div align="center">
 
-A complete luxury e-commerce platform built with **React** + **Supabase**, featuring a customer storefront, cart system, authentication, and a full owner admin panel.
-
----
-
-## ✨ Features
-
-### Customer Side
-- 🏠 **Homepage** — Hero banner, category showcase, featured products, brand promise section
-- 🛍 **Shop** — Full product catalogue with category filters, price/rating sort, search
-- 💎 **Product Detail** — Large display, quantity selector, add to cart, wishlist
-- 🛒 **Cart** — Live subtotal + 18% GST, quantity management, checkout
-- 👤 **Auth** — Customer sign up / sign in / sign out (Supabase Auth)
-- 🔍 **Search** — Real-time search across product name and brand
-
-### Owner / Admin Side
-- 🔑 **Owner Login** — Separate portal with role-based access (demo: owner@aurum.com / owner123)
-- 📊 **Dashboard** — Product count, inventory value, low-stock alerts, recent orders, category breakdown
-- 💎 **Product Management** — Add / edit / delete products with emoji icons, tags, badges, stock
-- 📦 **Order Management** — View all orders, update order status
-
----
-
-## 🗂 Project Structure
+<br/>
 
 ```
-aurum-luxury/
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── Navbar.js + .module.css
-│   │   ├── Footer.js + .module.css
-│   │   ├── ProductCard.js + .module.css
-│   │   ├── ProductModal.js + .module.css
-│   │   └── ToastContainer.js
-│   ├── hooks/
-│   │   ├── useAuth.js       ← Auth context (Supabase + demo fallback)
-│   │   └── useCart.js       ← Cart context (localStorage persistence)
-│   ├── lib/
-│   │   ├── supabase.js      ← Supabase client
-│   │   ├── productService.js ← Product CRUD
-│   │   ├── orderService.js  ← Order operations
-│   │   └── mockData.js      ← Fallback data (works without Supabase)
-│   ├── pages/
-│   │   ├── HomePage.js + .module.css
-│   │   ├── ShopPage.js + .module.css
-│   │   ├── ProductPage.js + .module.css
-│   │   ├── CartPage.js + .module.css
-│   │   ├── LoginPage.js
-│   │   ├── RegisterPage.js
-│   │   ├── OwnerLoginPage.js
-│   │   ├── AuthPage.module.css  ← shared auth styles
-│   │   ├── AdminPage.js + .module.css
-│   │   └── NotFoundPage.js + .module.css
-│   ├── App.js               ← Router, providers, toast system
-│   └── index.js
-├── supabase_schema.sql      ← Run this in Supabase SQL Editor
-├── .env.example
-└── package.json
+                                                   ─────────────────────────────────────
+                                                    A  U  R  U  M
+                                                 L U X U R Y   B O U T I Q U E
+                                                   ─────────────────────────────────────
 ```
+
+<br/>
+
+*A full-stack luxury e-commerce experience — crafted in React & Supabase*
+
+<br/>
+
+![React](https://img.shields.io/badge/React-18-black?style=flat-square&logo=react&logoColor=61DAFB)
+![Supabase](https://img.shields.io/badge/Supabase-Database-black?style=flat-square&logo=supabase&logoColor=3ECF8E)
+![Razorpay](https://img.shields.io/badge/Razorpay-Payments-black?style=flat-square&logo=razorpay&logoColor=white)
+![CSS Modules](https://img.shields.io/badge/CSS-Modules-black?style=flat-square&logo=cssmodules&logoColor=white)
+![MIT License](https://img.shields.io/badge/License-MIT-black?style=flat-square)
+
+<br/>
+
+</div>
 
 ---
 
-## 🚀 Setup Instructions
+<br/>
 
-### 1. Install dependencies
+## &nbsp;&nbsp;✦ &nbsp; Overview
+
+> Aurum is a premium luxury boutique platform — blending refined aesthetics with a complete commerce stack. Customers browse, cart and checkout seamlessly. The owner manages everything from a private dashboard — products, images, inventory and orders — in real time.
+
+<br/>
+
+---
+
+<br/>
+
+## &nbsp;&nbsp;✦ &nbsp; Features
+
+<br/>
+
+**Storefront**
+
+&nbsp;&nbsp;&nbsp;&nbsp;`🏛` &nbsp; Hero landing with brand promise & featured collections  
+&nbsp;&nbsp;&nbsp;&nbsp;`🛍` &nbsp; Shop with category filters, price sort & live search  
+&nbsp;&nbsp;&nbsp;&nbsp;`💎` &nbsp; Product detail pages with gallery, quantity & wishlist  
+&nbsp;&nbsp;&nbsp;&nbsp;`🛒` &nbsp; Cart with live subtotal, 18% GST & Razorpay checkout  
+&nbsp;&nbsp;&nbsp;&nbsp;`👤` &nbsp; Customer auth — sign up, sign in, sign out  
+&nbsp;&nbsp;&nbsp;&nbsp;`📦` &nbsp; Order history & email confirmations via Resend  
+
+<br/>
+
+**Owner Dashboard**
+
+&nbsp;&nbsp;&nbsp;&nbsp;`🔑` &nbsp; Separate owner portal with role-based access  
+&nbsp;&nbsp;&nbsp;&nbsp;`📊` &nbsp; Live stats — inventory value, low-stock alerts, revenue  
+&nbsp;&nbsp;&nbsp;&nbsp;`🖼` &nbsp; Product management with **multi-image upload** (up to 10 images)  
+&nbsp;&nbsp;&nbsp;&nbsp;`📦` &nbsp; Order management with real-time status updates  
+&nbsp;&nbsp;&nbsp;&nbsp;`✨` &nbsp; Category breakdown & recent orders panel  
+
+<br/>
+
+---
+
+<br/>
+
+## &nbsp;&nbsp;✦ &nbsp; Tech Stack
+
+<br/>
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, CSS Modules |
+| Backend & Auth | Supabase (PostgreSQL + RLS) |
+| Payments | Razorpay |
+| Email | Resend + Supabase Edge Functions |
+| Fonts | Cormorant Garamond · Montserrat |
+| Deploy | Vercel / Netlify |
+
+<br/>
+
+---
+
+<br/>
+
+## &nbsp;&nbsp;✦ &nbsp; Getting Started
+
+<br/>
+
+**1 — Install**
+
 ```bash
 cd aurum-luxury
 npm install
 ```
 
-### 2. Configure Supabase (optional — app works in demo mode without it)
+<br/>
 
-**a.** Create a free project at [supabase.com](https://supabase.com)
+**2 — Configure Supabase** *(optional — app works in demo mode without this)*
 
-**b.** In the Supabase dashboard, go to **SQL Editor** and run the entire contents of `supabase_schema.sql`
-
-**c.** Copy your credentials from **Settings → API**:
-```
-Project URL  → REACT_APP_SUPABASE_URL
-Anon Key     → REACT_APP_SUPABASE_ANON_KEY
-```
-
-**d.** Create your `.env` file:
 ```bash
 cp .env.example .env
-# Fill in your values
 ```
 
-**e.** Create the owner account:
-- Go to Supabase Dashboard → **Authentication → Users → Invite User**
-- Enter `owner@aurum.com` with password `owner123`
-- Then run in SQL Editor:
-  ```sql
-  UPDATE public.profiles SET role = 'owner' WHERE email = 'owner@aurum.com';
-  ```
+Add your credentials from **Supabase → Settings → API:**
 
-### 3. Start the development server
+```env
+REACT_APP_SUPABASE_URL=https://your-project.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Run the schema in **Supabase → SQL Editor:**
+
+```bash
+# paste contents of supabase_schema.sql and hit Run
+```
+
+Then add image columns:
+
+```sql
+ALTER TABLE products
+ADD COLUMN IF NOT EXISTS image_url TEXT,
+ADD COLUMN IF NOT EXISTS images    TEXT[];
+```
+
+<br/>
+
+**3 — Create Owner Account**
+
+```
+Email    → owner@aurum.com
+Password → owner123
+```
+
+```sql
+UPDATE public.profiles
+SET role = 'owner'
+WHERE email = 'owner@aurum.com';
+```
+
+<br/>
+
+**4 — Run**
+
 ```bash
 npm start
+# → http://localhost:3000
 ```
 
-App opens at **http://localhost:3000**
+<br/>
 
 ---
 
-## 🎭 Demo Mode (No Supabase Required)
+<br/>
 
-If `REACT_APP_SUPABASE_URL` is not set, the app runs fully in **demo mode**:
-- 10 pre-loaded luxury products across 4 categories
-- Login with any email + 6-char password → creates a demo session
-- Owner login: `owner@aurum.com` / `owner123`
-- Add/edit/delete products works (in-memory only, resets on refresh)
-- Cart persists via `localStorage`
+## &nbsp;&nbsp;✦ &nbsp; Demo Mode
 
----
+> No Supabase? No problem. The app runs fully offline with mock data.
 
-## 🗄 Database Schema (Supabase)
+```
+Owner login   →   owner@aurum.com  /  owner123
+Customer      →   any email  +  any 6-char password
+```
 
-| Table         | Description                                      |
-|---------------|--------------------------------------------------|
-| `profiles`    | Extends auth.users with `role` (customer/owner)  |
-| `products`    | Product catalogue with category, price, stock    |
-| `orders`      | Customer orders with status tracking             |
-| `order_items` | Line items per order                             |
-| `wishlist`    | User wishlist (user × product)                   |
+10 pre-loaded luxury products across 4 categories. Cart persists via `localStorage`. Product edits reset on page refresh.
 
-### Row Level Security
-- **Products** — Public read; owner-only write
-- **Orders** — Users see own orders; owners see all
-- **Profiles** — Users see/edit own profile only
+<br/>
 
 ---
 
-## 🎨 Design System
+<br/>
 
-| Token         | Value                    |
-|---------------|--------------------------|
-| `--gold`      | `#C9A84C`                |
-| `--gold-dark` | `#9B7D2F`                |
-| `--charcoal`  | `#1A1714`                |
-| `--cream`     | `#FAF8F3`                |
-| Display font  | Cormorant Garamond       |
-| Body font     | Montserrat               |
+## &nbsp;&nbsp;✦ &nbsp; Database
+
+<br/>
+
+| Table | Description |
+|---|---|
+| `profiles` | Extends auth.users — stores `role` (customer / owner) |
+| `products` | Catalogue — name, price, stock, images, category |
+| `orders` | Orders with status tracking & payment info |
+| `order_items` | Line items per order |
+| `wishlist` | User × product wishlist |
+
+<br/>
+
+**Row Level Security** — customers see only their own orders & profile. Owners have full product & order access. Products are publicly readable.
+
+<br/>
 
 ---
 
-## 🏗 Build for Production
+<br/>
+
+## &nbsp;&nbsp;✦ &nbsp; Design Tokens
+
+<br/>
+
+```
+  Gold          #C9A84C     ████
+  Gold Dark     #9B7D2F     ████
+  Charcoal      #1A1714     ████
+  Cream         #FAF8F3     ████
+
+  Display  →  Cormorant Garamond
+  Body     →  Montserrat
+```
+
+<br/>
+
+---
+
+<br/>
+
+## &nbsp;&nbsp;✦ &nbsp; Deploy
+
+<br/>
 
 ```bash
 npm run build
+
+# Vercel (recommended)
+npx vercel
 ```
 
-Output goes to the `build/` folder — deploy to **Vercel**, **Netlify**, or any static host.
+Set `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY` in your hosting dashboard.
 
-### Deploy to Vercel (recommended)
-```bash
-npm install -g vercel
-vercel
-# Set env vars in Vercel dashboard
-```
+<br/>
 
 ---
 
-## 📝 Environment Variables
+<br/>
 
-| Variable                      | Required | Description              |
-|-------------------------------|----------|--------------------------|
-| `REACT_APP_SUPABASE_URL`      | Optional | Your Supabase project URL |
-| `REACT_APP_SUPABASE_ANON_KEY` | Optional | Your Supabase anon key    |
+<div align="center">
 
----
+```
+  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+        MIT License  ·  Aurum 2026
+  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+```
 
-## 📄 License
+*Crafted with intention. Built for luxury.*
 
-MIT — feel free to use this as a base for your luxury e-commerce project.
+</div>
+
+<br/>
