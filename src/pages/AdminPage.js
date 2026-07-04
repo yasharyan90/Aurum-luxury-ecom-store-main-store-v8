@@ -40,13 +40,16 @@ export default function AdminPage() {
         try {
             const data = await fetchOrders();
             setOrders(data);
+        } catch (err) {
+            console.error('loadOrders failed:', err);
+            toast(`Failed to load orders: ${err?.message || 'Unknown error — check browser console'}`, 'error');
         } finally { setLoadingOrders(false); }
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
         if (tab === 'dashboard' || tab === 'products') loadProducts();
         if (tab === 'dashboard' || tab === 'orders')   loadOrders();
-    }, [tab]);
+    }, [tab, loadProducts, loadOrders]);
 
     // ── Product CRUD ──────────────────────────────────────
     const handleSave = async (data) => {

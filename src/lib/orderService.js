@@ -95,20 +95,54 @@ export async function fetchUserOrders(userId) {
 // ── Fetch all orders (owner) ──────────────────────────────────
 export async function fetchOrders(userId = null) {
     if (!isConfigured()) return MOCK_ORDERS;
-    try {
-        let query = supabase
-            .from('orders')
-            .select(`
-        *,
-        profiles:user_id (full_name, email),
-        order_items (*, products (name, emoji))
-      `)
-            .order('created_at', { ascending: false });
-        if (userId) query = query.eq('user_id', userId);
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
-    } catch { return MOCK_ORDERS; }
+
+    // NOTE: we deliberately do NOT embed `profiles:user_id (...)` in this
+    // query. Embedding requires PostgREST to see a real foreign-key
+    // relationship from orders.user_id -> profiles.id in its schema cache.
+    // If that FK is missing (or PostgREST hasn't reloaded its cache), the
+    // ENTIRE query fails with a "Could not find a relationship" error —
+    // which used to be silently swallowed below and replaced with demo
+    // data. order_items -> products embedding is fine (proven working on
+    // the customer side in fetchUserOrders), so we keep that.
+    let query = supabase
+        .from('orders')
+        .select(`
+      *,
+      order_items (*, products (name, emoji))
+    `)
+        .order('created_at', { ascending: false });
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query;
+    if (error) {
+        // Surface the real error instead of masking it with demo data.
+        console.error('[fetchOrders] Supabase error:', error);
+        throw new Error(error.message || 'Failed to load orders from Supabase');
+    }
+
+    const orders = data || [];
+    if (orders.length === 0) return orders;
+
+    // Fetch matching profiles separately (own query, no embedding needed)
+    // so a missing FK / relationship-cache issue can never take down the
+    // whole orders list.
+    const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
+    let profilesById = {};
+    if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+        if (profilesError) {
+            // Don't fail the whole order list just because profile lookup
+            // failed (e.g. RLS not yet updated) — just log it.
+            console.warn('[fetchOrders] Could not load profiles:', profilesError);
+        } else {
+            profilesById = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+        }
+    }
+
+    return orders.map(o => ({ ...o, profiles: profilesById[o.user_id] || null }));
 }
 
 // ── Update order status (owner) ───────────────────────────────
@@ -129,15 +163,15 @@ export async function updateOrderStatus(orderId, status) {
             .from('orders')
             .update({ status, status_updated_at: new Date().toISOString() })
             .eq('id', orderId)
-            .select('*');
+            .select('*')
+            .single();
 
         // Surface the real error message — never silently swallow it
         if (error) {
             console.error('[updateOrderStatus] Supabase error:', error);
             throw new Error(error.message || JSON.stringify(error));
         }
-        // .select() without .single() returns an array — take first item
-        updatedOrder = Array.isArray(data) ? data[0] : data;
+        updatedOrder = data;
     }
 
     // Send status email non-blocking — never let it fail the update
