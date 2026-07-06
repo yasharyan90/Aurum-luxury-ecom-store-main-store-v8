@@ -1,6 +1,6 @@
 // src/lib/walletService.js
 import { supabase } from './supabase';
-console.log('DEBUG supabase.rpc:', typeof supabase.rpc, supabase);
+
 const isConfigured = () =>
     process.env.REACT_APP_SUPABASE_URL &&
     process.env.REACT_APP_SUPABASE_URL !== 'https://placeholder.supabase.co';
@@ -21,7 +21,7 @@ export async function fetchWallet(userId) {
 
     // Sweep any newly-expired credits first so the balance shown is
     // always accurate, without needing a cron job.
-    await supabase.rpc('expire_wallet_credits').catch(err => console.warn('[expire_wallet_credits]', err));
+    try { await supabase.rpc('expire_wallet_credits'); } catch (err) { console.warn('[expire_wallet_credits]', err); }
 
     const [walletRes, creditsRes] = await Promise.all([
         supabase.from('wallets').select('*').eq('user_id', userId).maybeSingle(),
@@ -60,10 +60,10 @@ export async function fetchWalletTransactions(userId, limit = 100) {
 }
 
 // ── Coupons belonging to one user (their own + any global ones,
-// --    excluding global coupons this specific customer already used) ─
+//    excluding global coupons this specific customer already used) ─
 export async function fetchMyCoupons(userId) {
     if (!isConfigured() || !userId) return [];
-    await supabase.rpc('expire_coupons').catch(err => console.warn('[expire_coupons]', err));
+    try { await supabase.rpc('expire_coupons'); } catch (err) { console.warn('[expire_coupons]', err); }
 
     const [couponsRes, redemptionsRes] = await Promise.all([
         supabase.from('coupons').select('*').or(`user_id.eq.${userId},user_id.is.null`).order('created_at', { ascending: false }),
@@ -151,7 +151,7 @@ async function attachProfiles(rows) {
 // ── Every customer's wallet balance ─────────────────────────────
 export async function fetchAllWallets() {
     if (!isConfigured()) return [];
-    await supabase.rpc('expire_wallet_credits').catch(err => console.warn('[expire_wallet_credits]', err));
+    try { await supabase.rpc('expire_wallet_credits'); } catch (err) { console.warn('[expire_wallet_credits]', err); }
     const { data, error } = await supabase.from('wallets').select('*').order('balance', { ascending: false });
     if (error) {
         console.error('[fetchAllWallets] error:', error);
@@ -174,7 +174,7 @@ export async function fetchAllWalletCredits() {
 // ── Every coupon ever issued ─────────────────────────────────────
 export async function fetchAllCoupons() {
     if (!isConfigured()) return [];
-    await supabase.rpc('expire_coupons').catch(err => console.warn('[expire_coupons]', err));
+    try { await supabase.rpc('expire_coupons'); } catch (err) { console.warn('[expire_coupons]', err); }
     const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
     if (error) {
         console.error('[fetchAllCoupons] error:', error);
