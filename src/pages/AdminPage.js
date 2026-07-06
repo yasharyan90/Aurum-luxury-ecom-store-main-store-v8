@@ -5,14 +5,33 @@ import { useToast } from '../App';
 import { fetchProducts, createProduct, updateProduct, deleteProduct } from '../lib/productService';
 import { fetchOrders, updateOrderStatus } from '../lib/orderService';
 import { ORDER_STATUSES, getStatusConfig } from '../lib/orderStatus';
+import {
+    fetchCustomers, fetchAllWallets, fetchAllWalletCredits, fetchAllCoupons,
+    grantWalletCredit, extendWalletCreditExpiry, issueCoupon, extendCouponExpiry, revokeCoupon,
+} from '../lib/walletService';
 import ProductModal from '../components/ProductModal';
+import GrantCreditModal from '../components/GrantCreditModal';
+import IssueCouponModal from '../components/IssueCouponModal';
+import ExtendExpiryModal from '../components/ExtendExpiryModal';
 import LuxuryLoader from '../components/LuxuryLoader';
 import TableSkeleton from '../components/TableSkeleton';
 import styles from './AdminPage.module.css';
 
-const TABS = ['dashboard', 'products', 'orders'];
+const TABS = ['dashboard', 'products', 'orders', 'wallet'];
 
 const STOCK_COLOR = (stock) => (stock === 0 ? '#C0392B' : stock < 5 ? '#D97706' : '#27AE60');
+
+function expiryBadge(expiryDate, status) {
+    if (status === 'depleted')  return { label: 'Depleted', cls: styles.badgeNeutral };
+    if (status === 'redeemed')  return { label: 'Redeemed', cls: styles.badgeNeutral };
+    if (status === 'revoked')   return { label: 'Revoked',  cls: styles.badgeNeutral };
+    if (status === 'expired')   return { label: 'Expired',  cls: styles.badgeExpired };
+    if (!expiryDate) return { label: 'No Expiry', cls: styles.badgeActive };
+    const days = Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+    if (days < 0)  return { label: 'Expired', cls: styles.badgeExpired };
+    if (days <= 7) return { label: `${days}d left`, cls: styles.badgeExpiring };
+    return { label: new Date(expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), cls: styles.badgeActive };
+}
 
 export default function AdminPage() {
     const { user, profile, signOut } = useAuth();
@@ -25,6 +44,17 @@ export default function AdminPage() {
     const [modal, setModal]       = useState(null); // null | 'add' | product obj
     const [search, setSearch]     = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+    // ── Wallet & Coupons ──────────────────────────────────
+    const [walletSubTab, setWalletSubTab]   = useState('wallets'); // 'wallets' | 'credits' | 'coupons'
+    const [customers, setCustomers]         = useState([]);
+    const [wallets, setWallets]             = useState([]);
+    const [walletCredits, setWalletCredits] = useState([]);
+    const [coupons, setCoupons]             = useState([]);
+    const [loadingWallet, setLoadingWallet] = useState(true);
+    const [grantModal, setGrantModal]       = useState(null); // null | true | { customer }
+    const [couponModal, setCouponModal]     = useState(null); // null | true | { customer }
+    const [extendTarget, setExtendTarget]   = useState(null); // { type: 'credit'|'coupon', id, currentExpiry, title }
 
     // ── Data loaders ─────────────────────────────────────
     const loadProducts = useCallback(async () => {
@@ -46,10 +76,61 @@ export default function AdminPage() {
         } finally { setLoadingOrders(false); }
     }, [toast]);
 
+    const loadWallet = useCallback(async () => {
+        setLoadingWallet(true);
+        try {
+            const [c, w, wc, cp] = await Promise.all([
+                fetchCustomers(), fetchAllWallets(), fetchAllWalletCredits(), fetchAllCoupons(),
+            ]);
+            setCustomers(c);
+            setWallets(w);
+            setWalletCredits(wc);
+            setCoupons(cp);
+        } catch (err) {
+            console.error('loadWallet failed:', err);
+            toast(`Failed to load wallet data: ${err?.message || 'Unknown error — check browser console'}`, 'error');
+        } finally { setLoadingWallet(false); }
+    }, [toast]);
+
     useEffect(() => {
         if (tab === 'dashboard' || tab === 'products') loadProducts();
         if (tab === 'dashboard' || tab === 'orders')   loadOrders();
-    }, [tab, loadProducts, loadOrders]);
+        if (tab === 'wallet')                          loadWallet();
+    }, [tab, loadProducts, loadOrders, loadWallet]);
+
+    // ── Wallet / Coupon handlers ────────────────────────────
+    const handleGrantCredit = async (payload) => {
+        await grantWalletCredit(payload);
+        toast('Wallet credit granted successfully', 'success');
+        await loadWallet();
+    };
+
+    const handleIssueCoupon = async (payload) => {
+        await issueCoupon(payload);
+        toast('Coupon issued successfully', 'success');
+        await loadWallet();
+    };
+
+    const handleExtendExpiry = async (newDate) => {
+        if (extendTarget.type === 'credit') {
+            await extendWalletCreditExpiry(extendTarget.id, newDate);
+        } else {
+            await extendCouponExpiry(extendTarget.id, newDate);
+        }
+        toast('Expiry updated successfully', 'success');
+        await loadWallet();
+    };
+
+    const handleRevokeCoupon = async (coupon) => {
+        if (!window.confirm(`Revoke coupon ${coupon.code}? This cannot be undone.`)) return;
+        try {
+            await revokeCoupon(coupon.id);
+            toast('Coupon revoked', 'success');
+            await loadWallet();
+        } catch (err) {
+            toast(`Failed to revoke coupon: ${err.message}`, 'error');
+        }
+    };
 
     // ── Product CRUD ──────────────────────────────────────
     const handleSave = async (data) => {
@@ -128,7 +209,7 @@ export default function AdminPage() {
                             onClick={() => setTab(t)}
                         >
               <span className={styles.navIcon}>
-                {t === 'dashboard' ? '📊' : t === 'products' ? '💎' : '📦'}
+                {t === 'dashboard' ? '📊' : t === 'products' ? '💎' : t === 'orders' ? '📦' : '💰'}
               </span>
                             {t.charAt(0).toUpperCase() + t.slice(1)}
                         </button>
@@ -431,6 +512,12 @@ export default function AdminPage() {
                                                     <div className={styles.orderDetail}>Method: <strong>{o.payment_method || 'razorpay'}</strong></div>
                                                     {o.payment_id && <div className={styles.orderDetail} style={{ wordBreak: 'break-all' }}>ID: <code style={{ fontSize: 10 }}>{o.payment_id}</code></div>}
                                                     <div className={styles.orderDetail}>Subtotal: {fmt(o.subtotal)} + GST: {fmt(o.tax)}</div>
+                                                    {o.discount_amount > 0 && (
+                                                        <div className={styles.orderDetail} style={{ color: '#27AE60' }}>Coupon Discount: −{fmt(o.discount_amount)}</div>
+                                                    )}
+                                                    {o.wallet_amount_used > 0 && (
+                                                        <div className={styles.orderDetail} style={{ color: '#27AE60' }}>Wallet Applied: −{fmt(o.wallet_amount_used)}</div>
+                                                    )}
                                                     {o.tracking_number && (
                                                         <div className={styles.orderDetail} style={{ marginTop: 6 }}>
                                                             📦 {o.carrier || 'Courier'}: <code style={{ fontSize: 10 }}>{o.tracking_number}</code>
@@ -452,6 +539,232 @@ export default function AdminPage() {
                                     );
                                 })}
                             </div>
+                        )}
+                    </div>
+                )}
+                {/* ═══════════ WALLET & COUPONS ═══════════ */}
+                {tab === 'wallet' && (
+                    <div className="fade-in">
+                        <div className={styles.pageHeader}>
+                            <div>
+                                <h1 className={styles.pageTitle}>Wallet &amp; Coupons</h1>
+                                <p className={styles.pageDate}>
+                                    {loadingWallet ? 'Loading…' : `${wallets.length} customer wallet${wallets.length !== 1 ? 's' : ''} · ${fmt(wallets.reduce((s, w) => s + Number(w.balance || 0), 0))} total balance`}
+                                </p>
+                            </div>
+                            <div className={styles.headerActions}>
+                                <button className="btn btn-outline" onClick={() => setGrantModal(true)}>+ Grant Credit</button>
+                                <button className="btn btn-primary" onClick={() => setCouponModal(true)}>+ Issue Coupon</button>
+                            </div>
+                        </div>
+
+                        {loadingWallet ? (
+                            <LuxuryLoader label="Loading Wallet Data" />
+                        ) : (
+                            <>
+                                {/* Stats */}
+                                <div className={styles.statsGrid}>
+                                    {[
+                                        { num: fmt(wallets.reduce((s, w) => s + Number(w.balance || 0), 0)), label: 'Total Wallet Balance', icon: '💰' },
+                                        { num: coupons.filter(c => c.status === 'active').length, label: 'Active Coupons', icon: '🎟' },
+                                        { num: walletCredits.filter(c => c.status === 'active' && c.expiry_date && Math.ceil((new Date(c.expiry_date) - new Date()) / 86400000) <= 7).length, label: 'Credits Expiring Soon', icon: '⏳' },
+                                        { num: coupons.filter(c => c.status === 'redeemed').length, label: 'Coupons Redeemed', icon: '✅' },
+                                    ].map(s => (
+                                        <div key={s.label} className={styles.statCard}>
+                                            <div className={styles.statIcon}>{s.icon}</div>
+                                            <div className={styles.statNum}>{s.num}</div>
+                                            <div className={styles.statLabel}>{s.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Sub-tabs */}
+                                <div className={styles.subTabs}>
+                                    {[
+                                        { key: 'wallets', label: `Customer Wallets (${wallets.length})` },
+                                        { key: 'credits', label: `Credit History (${walletCredits.length})` },
+                                        { key: 'coupons', label: `Coupons (${coupons.length})` },
+                                    ].map(t => (
+                                        <button
+                                            key={t.key}
+                                            className={`${styles.subTab} ${walletSubTab === t.key ? styles.subTabActive : ''}`}
+                                            onClick={() => setWalletSubTab(t.key)}
+                                        >
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* ── Customer Wallets ── */}
+                                {walletSubTab === 'wallets' && (
+                                    <div className={styles.tableWrap}>
+                                        <table className={styles.table}>
+                                            <thead>
+                                            <tr>
+                                                <th>Customer</th>
+                                                <th>Balance</th>
+                                                <th>Active Credits</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {wallets.length === 0 ? (
+                                                <tr><td colSpan={4}>
+                                                    <div className={styles.emptyState}>
+                                                        <div className={styles.emptyStateIcon}>💰</div>
+                                                        <p>No customer wallets yet. Grant credit to a customer to get started.</p>
+                                                    </div>
+                                                </td></tr>
+                                            ) : wallets.map(w => {
+                                                const activeCount = walletCredits.filter(c => c.user_id === w.user_id && c.status === 'active').length;
+                                                return (
+                                                    <tr key={w.user_id}>
+                                                        <td>
+                                                            <div className={styles.customerCell}>
+                                                                <span className={styles.customerName}>{w.profile?.full_name || 'Customer'}</span>
+                                                                <span className={styles.customerEmail}>{w.profile?.email}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className={styles.walletBalanceCell}>{fmt(w.balance)}</td>
+                                                        <td>{activeCount}</td>
+                                                        <td>
+                                                            <div className={styles.actionBtns}>
+                                                                <button className="btn btn-ghost btn-sm" onClick={() => setGrantModal({ customer: w.profile ? { id: w.user_id, ...w.profile } : null })}>
+                                                                    Grant Credit
+                                                                </button>
+                                                                <button className="btn btn-ghost btn-sm" onClick={() => setCouponModal({ customer: w.profile ? { id: w.user_id, ...w.profile } : null })}>
+                                                                    Issue Coupon
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* ── Credit History ── */}
+                                {walletSubTab === 'credits' && (
+                                    <div className={styles.tableWrap}>
+                                        <table className={styles.table}>
+                                            <thead>
+                                            <tr>
+                                                <th>Customer</th>
+                                                <th>Granted</th>
+                                                <th>Remaining</th>
+                                                <th>Expiry</th>
+                                                <th>Note</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {walletCredits.length === 0 ? (
+                                                <tr><td colSpan={6}>
+                                                    <div className={styles.emptyState}>
+                                                        <div className={styles.emptyStateIcon}>🎁</div>
+                                                        <p>No wallet credit has been granted yet.</p>
+                                                    </div>
+                                                </td></tr>
+                                            ) : walletCredits.map(c => {
+                                                const badge = expiryBadge(c.expiry_date, c.status);
+                                                return (
+                                                    <tr key={c.id}>
+                                                        <td>
+                                                            <div className={styles.customerCell}>
+                                                                <span className={styles.customerName}>{c.profile?.full_name || 'Customer'}</span>
+                                                                <span className={styles.customerEmail}>{c.profile?.email}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className={styles.priceCell}>{fmt(c.amount)}</td>
+                                                        <td>{fmt(c.remaining_amount)}</td>
+                                                        <td><span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span></td>
+                                                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{c.note || '—'}</td>
+                                                        <td>
+                                                            {c.status !== 'depleted' && (
+                                                                <button
+                                                                    className="btn btn-ghost btn-sm"
+                                                                    onClick={() => setExtendTarget({ type: 'credit', id: c.id, currentExpiry: c.expiry_date, title: 'Extend Wallet Credit Expiry', subtitle: `${c.profile?.full_name || 'Customer'} · ${fmt(c.remaining_amount)} remaining` })}
+                                                                >
+                                                                    Extend
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* ── Coupons ── */}
+                                {walletSubTab === 'coupons' && (
+                                    <div className={styles.tableWrap}>
+                                        <table className={styles.table}>
+                                            <thead>
+                                            <tr>
+                                                <th>Code</th>
+                                                <th>Customer</th>
+                                                <th>Discount</th>
+                                                <th>Min Order</th>
+                                                <th>Expiry</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {coupons.length === 0 ? (
+                                                <tr><td colSpan={6}>
+                                                    <div className={styles.emptyState}>
+                                                        <div className={styles.emptyStateIcon}>🎟</div>
+                                                        <p>No coupons issued yet.</p>
+                                                    </div>
+                                                </td></tr>
+                                            ) : coupons.map(c => {
+                                                const badge = expiryBadge(c.expiry_date, c.status);
+                                                return (
+                                                    <tr key={c.id}>
+                                                        <td className={styles.couponCodeCell}>{c.code}</td>
+                                                        <td>
+                                                            {c.user_id === null ? (
+                                                                <div className={styles.customerCell}>
+                                                                    <span className={styles.customerName}>🌐 All Customers</span>
+                                                                    <span className={styles.customerEmail}>Anyone can use this coupon</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className={styles.customerCell}>
+                                                                    <span className={styles.customerName}>{c.profile?.full_name || 'Customer'}</span>
+                                                                    <span className={styles.customerEmail}>{c.profile?.email}</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td>{c.discount_type === 'percentage' ? `${c.discount_value}%${c.max_discount ? ` (max ${fmt(c.max_discount)})` : ''}` : fmt(c.discount_value)}</td>
+                                                        <td>{c.min_order_value > 0 ? fmt(c.min_order_value) : '—'}</td>
+                                                        <td><span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span></td>
+                                                        <td>
+                                                            <div className={styles.actionBtns}>
+                                                                {(c.status === 'active' || c.status === 'expired') && (
+                                                                    <button
+                                                                        className="btn btn-ghost btn-sm"
+                                                                        onClick={() => setExtendTarget({ type: 'coupon', id: c.id, currentExpiry: c.expiry_date, title: 'Extend Coupon Expiry', subtitle: `${c.code} · ${c.profile?.full_name || 'Customer'}` })}
+                                                                    >
+                                                                        Extend
+                                                                    </button>
+                                                                )}
+                                                                {(c.status === 'active' || c.status === 'expired') && (
+                                                                    <button className="btn btn-danger btn-sm" onClick={() => handleRevokeCoupon(c)}>Revoke</button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 )}
@@ -484,6 +797,37 @@ export default function AdminPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ── Grant Wallet Credit Modal ── */}
+            {grantModal && (
+                <GrantCreditModal
+                    customers={customers}
+                    defaultCustomer={grantModal.customer || null}
+                    onClose={() => setGrantModal(null)}
+                    onSave={handleGrantCredit}
+                />
+            )}
+
+            {/* ── Issue Coupon Modal ── */}
+            {couponModal && (
+                <IssueCouponModal
+                    customers={customers}
+                    defaultCustomer={couponModal.customer || null}
+                    onClose={() => setCouponModal(null)}
+                    onSave={handleIssueCoupon}
+                />
+            )}
+
+            {/* ── Extend Expiry Modal (wallet credit or coupon) ── */}
+            {extendTarget && (
+                <ExtendExpiryModal
+                    title={extendTarget.title}
+                    subtitle={extendTarget.subtitle}
+                    currentExpiry={extendTarget.currentExpiry}
+                    onClose={() => setExtendTarget(null)}
+                    onSave={handleExtendExpiry}
+                />
             )}
         </div>
     );

@@ -23,6 +23,7 @@ export const supabase = createClient(
   supabaseUrl  || 'https://placeholder.supabase.co',
   supabaseKey  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
 );
+console.log('supabase.rpc type:', typeof supabase.rpc);
 
 export const supabaseConfigured = isConfigured;
 export default supabase;

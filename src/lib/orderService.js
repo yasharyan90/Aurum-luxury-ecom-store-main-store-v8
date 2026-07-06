@@ -8,7 +8,7 @@ const isConfigured = () =>
     !process.env.REACT_APP_SUPABASE_URL.includes('placeholder');
 
 // ── Place a new order ─────────────────────────────────────────
-export async function placeOrder({ userId, items, subtotal, tax, total, address, paymentId, paymentMethod }) {
+export async function placeOrder({ userId, items, subtotal, tax, total, address, paymentId, paymentMethod, walletAmountUsed = 0 }) {
     const orderData = {
         user_id:        userId,
         status:         'paid',
@@ -18,6 +18,7 @@ export async function placeOrder({ userId, items, subtotal, tax, total, address,
         address,
         payment_id:     paymentId || null,
         payment_method: paymentMethod || 'razorpay',
+        wallet_amount_used: walletAmountUsed || 0,
     };
 
     let order;
