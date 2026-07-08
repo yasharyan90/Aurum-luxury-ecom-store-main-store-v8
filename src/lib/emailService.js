@@ -44,9 +44,10 @@ async function loadEmailJS() {
 const fmt = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
 
 function buildItemsHTML(items = []) {
-    return items.map(item =>
-        `• ${item.emoji || '💎'} ${item.product_name || item.name} × ${item.quantity || item.qty} — ${fmt((item.price) * (item.quantity || item.qty))}`
-    ).join('\n');
+    return items.map(item => {
+        const qty = item.quantity || item.qty;
+        return `${item.emoji || '💎'}  ${item.product_name || item.name}\n     Qty ${qty}  ·  ${fmt(item.price * qty)}`;
+    }).join('\n\n');
 }
 
 function buildItemsHTMLTable(items = []) {
@@ -79,7 +80,7 @@ export async function sendOrderConfirmationEmail({ order, items, address }) {
                 to_email:     customerEmail,
                 order_id:     orderId,
                 order_date:   new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-                items_text:   buildItemsHTMLTable(items),
+                items_text:   buildItemsHTML(items),
                 subtotal:     fmt(order.subtotal),
                 tax:          fmt(order.tax),
                 total:        fmt(order.total),
